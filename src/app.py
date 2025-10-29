@@ -50,17 +50,23 @@ def create_feature_importance_plot(classifier, preprocessor, n_features=20):
         feature_names = preprocessor.vectorizer.get_feature_names_out()
         coefficients = classifier.model.coef_[0]
         
+        # Convert sparse matrix to dense if necessary
+        if hasattr(coefficients, 'toarray'):
+            coefficients = coefficients.toarray().flatten()
+            
+        # Calculate absolute values
+        importance_values = np.abs(coefficients)
+        
         # Create DataFrame of features and their importance
         feature_importance = pd.DataFrame({
             'feature': feature_names,
-            'importance': abs(coefficients)
-        }).sort_values('importance', ascending=False)
-        
-        # Take top N features
-        top_features = feature_importance.head(n_features)
+            'importance': importance_values
+        })
+        # Sort and select top N features
+        feature_importance = feature_importance.nlargest(n_features, 'importance')
         
         # Create bar plot using plotly
-        fig = px.bar(top_features, 
+        fig = px.bar(feature_importance, 
                     x='importance', 
                     y='feature',
                     orientation='h',
