@@ -2,6 +2,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 from typing import List, Tuple
+import joblib
 
 class TextPreprocessor:
     """Class for preprocessing text data for spam classification."""
@@ -56,3 +57,27 @@ class TextPreprocessor:
         X_scaled = self.scaler.transform(X_tfidf)
         
         return X_scaled
+        
+    def save_preprocessor(self, filepath: str):
+        """
+        Save the fitted preprocessor to disk.
+        
+        Args:
+            filepath (str): Path to save the preprocessor
+        """
+        joblib.dump((self.vectorizer, self.scaler), filepath)
+    
+    @classmethod
+    def load_preprocessor(cls, filepath: str) -> 'TextPreprocessor':
+        """
+        Load a fitted preprocessor from disk.
+        
+        Args:
+            filepath (str): Path to the saved preprocessor
+            
+        Returns:
+            TextPreprocessor: Loaded preprocessor instance
+        """
+        instance = cls()
+        instance.vectorizer, instance.scaler = joblib.load(filepath)
+        return instance

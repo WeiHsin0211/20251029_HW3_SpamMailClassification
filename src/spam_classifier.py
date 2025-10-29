@@ -1,7 +1,7 @@
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import numpy as np
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 import joblib
 
 class SpamClassifier:
@@ -14,7 +14,7 @@ class SpamClassifier:
         Args:
             **kwargs: Arguments to pass to SVC
         """
-        self.model = SVC(kernel='linear', **kwargs)
+        self.model = SVC(kernel='linear', probability=True, **kwargs)
         
     def train(self, X: np.ndarray, y: np.ndarray):
         """
@@ -37,6 +37,18 @@ class SpamClassifier:
             np.ndarray: Predicted labels
         """
         return self.model.predict(X)
+        
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        """
+        Get probability estimates for predictions.
+        
+        Args:
+            X (np.ndarray): Feature matrix
+            
+        Returns:
+            np.ndarray: Probability estimates for each class
+        """
+        return self.model.predict_proba(X)
     
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> Dict[str, float]:
         """
