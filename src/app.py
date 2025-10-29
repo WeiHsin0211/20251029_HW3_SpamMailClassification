@@ -7,9 +7,27 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, roc_curve, auc
+from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
 import plotly.express as px
 import plotly.graph_objects as go
+
+def create_precision_recall_curve_plot(y_true, y_prob):
+    """Create and return a Precision-Recall curve plot."""
+    precision, recall, _ = precision_recall_curve(y_true, y_prob)
+    pr_auc = auc(recall, precision)
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=recall, y=precision,
+                            name=f'PR curve (AUC = {pr_auc:.2f})',
+                            mode='lines'))
+    
+    fig.update_layout(
+        title='Precision-Recall Curve',
+        xaxis_title='Recall',
+        yaxis_title='Precision',
+        height=600
+    )
+    return fig
 
 def create_confusion_matrix_plot(y_true, y_pred):
     """Create and return a confusion matrix plot."""
@@ -91,6 +109,24 @@ def load_or_train_model():
     if os.path.exists(model_path) and os.path.exists(preprocessor_path):
         classifier = SpamClassifier.load_model(model_path)
         preprocessor = TextPreprocessor.load_preprocessor(preprocessor_path)
+        
+        # Calculate metrics for loaded model
+        DATA_URL = "https://raw.githubusercontent.com/PacktPublishing/Hands-On-Artificial-Intelligence-for-Cybersecurity/refs/heads/master/Chapter03/datasets/sms_spam_no_header.csv"
+        data_loader = DataLoader(DATA_URL)
+        data_loader.download_data()
+        X_train, X_test, y_train, y_test = data_loader.get_train_test_split()
+        
+        # Process test data and calculate metrics
+        X_test_processed = preprocessor.transform(X_test)
+        y_pred = classifier.predict(X_test_processed)
+        y_prob = classifier.predict_proba(X_test_processed)[:, 1]
+        
+        st.session_state.model_metrics = {
+            'X_test': X_test,
+            'y_test': y_test,
+            'y_pred': y_pred,
+            'y_prob': y_prob
+        }
     else:
         # Initialize components
         DATA_URL = "https://raw.githubusercontent.com/PacktPublishing/Hands-On-Artificial-Intelligence-for-Cybersecurity/refs/heads/master/Chapter03/datasets/sms_spam_no_header.csv"
@@ -147,8 +183,33 @@ def main():
     classifier, preprocessor = load_or_train_model()
 
     if page == "Classify Email":
-        # Create text input
-        email_text = st.text_area("Enter email text:", height=200)
+        # Add example buttons
+        st.write("### Try an example:")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Show Spam Example"):
+                email_text = """URGENT! You've won a $1,000 gift card! 
+                Click here to claim your prize now! Limited time offer.
+                Don't miss out! www.prize-claim.com"""
+                st.session_state.email_text = email_text
+        with col2:
+            if st.button("Show Ham Example"):
+                email_text = """Hi John,
+                Just following up on our meeting from yesterday. 
+                I've attached the updated proposal for your review.
+                Let me know if you need any changes.
+                Best regards,
+                Sarah"""
+                st.session_state.email_text = email_text
+        
+        # Initialize session state for email text if not exists
+        if 'email_text' not in st.session_state:
+            st.session_state.email_text = ""
+            
+        # Create text input with session state value
+        email_text = st.text_area("Enter email text:", 
+                                 value=st.session_state.email_text,
+                                 height=200)
         
         if st.button('Classify'):
             if email_text:
@@ -216,6 +277,12 @@ def main():
             st.write("This curve shows the trade-off between true positive rate and false positive rate:")
             roc_fig = create_roc_curve_plot(metrics['y_test'], metrics['y_prob'])
             st.plotly_chart(roc_fig, use_container_width=True)
+            
+            # Display Precision-Recall curve
+            st.write("#### Precision-Recall Curve")
+            st.write("This curve shows the trade-off between precision and recall:")
+            pr_fig = create_precision_recall_curve_plot(metrics['y_test'], metrics['y_prob'])
+            st.plotly_chart(pr_fig, use_container_width=True)
             
             # Calculate and display additional metrics
             accuracy = np.mean(metrics['y_test'] == metrics['y_pred'])
